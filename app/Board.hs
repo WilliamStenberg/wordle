@@ -6,16 +6,17 @@ module Board where
 import Data.List (partition, sort)
 
 data GuessResult
-  = Lost {answer :: String}
+  = Lost Answer
   | NextRound Board
   | Won {nGuesses :: Int}
 
 instance Show GuessResult where
-  show (Lost{answer}) = "Lost. The answer was " <> answer
+  show (Lost (Answer a)) = "Lost. The answer was " <> a
   show (NextRound _) = "NextRound"
   show (Won{nGuesses}) = "Won in " <> show nGuesses <> " guesses"
+newtype Answer = Answer String
 
-data Board = Board {rows :: [Row], answer :: String}
+data Board = Board {rows :: [Row], answer :: Answer}
 newtype Row = Row [Tile]
 
 data Tile = Tile {index :: Int, character :: Char, color :: Color}
@@ -27,7 +28,11 @@ instance Ord Tile where
 data Color = Gray | Yellow | Green
 
 boardLength :: Board -> Int
-boardLength (Board{answer}) = length answer
+boardLength (Board{answer = Answer a}) = length a
+
+boardFromAnswer :: String -> Board
+boardFromAnswer ans =
+  Board{answer = Answer ans, rows = []}
 
 withGuess :: Board -> String -> Board
 withGuess (Board{rows, answer}) guess =
@@ -35,8 +40,8 @@ withGuess (Board{rows, answer}) guess =
  where
   row = makeRow guess answer
 
-makeRow :: [Char] -> [Char] -> Row
-makeRow guessArr answerArr =
+makeRow :: [Char] -> Answer -> Row
+makeRow guessArr (Answer answerArr) =
   let
     index = zip [(1 :: Int) ..]
     (gs1, as1, ts1) = withCorrect (index guessArr) (index answerArr)
@@ -84,10 +89,11 @@ checkGuess :: Board -> String -> GuessResult
 checkGuess board@(Board{answer, rows}) guess =
   let
     nGuesses = length rows + 1
+    Answer a = answer
    in
-    if guess == answer
+    if guess == a
       then Won{nGuesses}
       else
         if nGuesses == boardLength board
-          then Lost{answer}
+          then Lost answer
           else NextRound $ board `withGuess` guess

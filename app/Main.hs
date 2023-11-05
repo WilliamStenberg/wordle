@@ -12,8 +12,8 @@ import UI
 main :: IO ()
 main = do
   ws <- readWordsOfLength 5
-  targets <- sample 1 ws
-  s2 <- traverse playInteractive [Board{rows = [], answer = t} | t <- targets]
+  answer <- sample 1 ws
+  s2 <- traverse playInteractive [boardFromAnswer t | t <- answer]
   print s2
 
 playInteractive :: Board -> IO GuessResult
