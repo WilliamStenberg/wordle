@@ -1,50 +1,50 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QualifiedDo #-}
 
 module Main where
 
 import Board
+import Control.Monad.State
 import Data.Function ((&))
 import Rainbow
-import System.Random (newStdGen, randomRs)
+import Robot
 import UI
+import Vocabulary
 
 main :: IO ()
 main = do
   ws <- readWordsOfLength 5
   answer <- sample 1 ws
-  s2 <- traverse playInteractive [boardFromAnswer t | t <- answer]
+  s2 <- traverse (play human) [boardFromAnswer t | t <- answer]
   print s2
 
-playInteractive :: Board -> IO GuessResult
-playInteractive board =
+play :: (a, Guesser a) -> Board -> IO GuessResult
+play (a, guesser) board =
   do
-    putChunksLn $ showBoard board
-    putChunkLn $ "Guess a word:" & fore blue
-    line <- getLegalLine
+    (line, a') <- runStateT (guesser board) a
     case checkGuess board line of
-      NextRound newBoard -> playInteractive newBoard
+      NextRound newBoard -> play (a', guesser) newBoard
       wonOrLost -> pure wonOrLost
+
+human :: (Int, Guesser Int)
+human =
+  (0, playInteractive)
  where
-  getLegalLine =
+  playInteractive board =
     do
-      guess <- getLine
-      -- If length is n
-      case length guess of
-        x | x == boardLength board -> return guess
-        _ -> putStrLn "Wrong length" >> getLegalLine
-
-readWordsOfLength :: Int -> IO [String]
-readWordsOfLength n =
-  filter ((== n) . length)
-    . map init
-    . lines
-    <$> readFile "words.txt"
-
-sample :: Int -> [String] -> IO [String]
-sample n xs =
-  do
-    fmap (xs !!)
-    . take n
-    . System.Random.randomRs (0, length xs - 1)
-    <$> System.Random.newStdGen
+      score <- get
+      line <-
+        lift $ do
+          putChunksLn $ showBoard board
+          putChunkLn $ "Guess a word:" & fore blue
+          getLegalLine
+      put (score + 1)
+      return line
+   where
+    getLegalLine =
+      do
+        guess <- getLine
+        case length guess of
+          x | x == boardLength board -> return guess
+          _ -> putStrLn "Wrong length" >> getLegalLine
